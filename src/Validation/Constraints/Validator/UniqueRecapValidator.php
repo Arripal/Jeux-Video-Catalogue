@@ -23,7 +23,7 @@ class UniqueRecapValidator extends ConstraintValidator
         if (!$value instanceof \App\Validation\Recap) {
             return;
         }
-        /*
+
         $player = $this->entity_manager->getRepository(Player::class)->findOneBy([
             'username' => $value->getPlayer()->getUsername(),
         ]);
@@ -31,15 +31,14 @@ class UniqueRecapValidator extends ConstraintValidator
         $game = $this->entity_manager->getRepository(Game::class)->findOneBy([
             'apiID' => $value->getGame()->getApiID(),
         ]);
-*/
 
         $existing_recap = $this->recap_repository->createQueryBuilder('r')
             ->join('r.player', 'p')
             ->join('r.game', 'g')
             ->where('p.username = :username')
             ->andWhere('g.apiID = :apiID')
-            ->setParameter('username', $value->getPlayer()->getUsername())
-            ->setParameter('apiID', $value->getGame()->getApiID())
+            ->setParameter('username', $player)
+            ->setParameter('apiID', $game)
             ->getQuery()
             ->getOneOrNullResult();
 

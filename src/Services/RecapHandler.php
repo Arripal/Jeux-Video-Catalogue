@@ -8,6 +8,7 @@ use App\Entity\Recap;
 use App\enums\GameStatus;
 use App\Exception\RecapExistingException;
 use App\Exception\RecapNotFoundException;
+use App\Exception\ValidationException;
 use App\Repository\PlayerRepository;
 use App\Repository\RecapRepository;
 use App\Utils\FieldsHandler;
@@ -16,11 +17,11 @@ use Doctrine\ORM\EntityManagerInterface;
 use App\Validation\Recap as ValidationRecap;
 use DateTime;
 use Symfony\Component\Serializer\SerializerInterface;
-
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 class RecapHandler
 {
-    public function __construct(private EntityManagerInterface $entity_manager, private RecapRepository $recap_repository, private Validation $validation, private SerializerInterface $serializer_interface, private PlayerRepository $player_repository, private GameHandler $game_handler, private PlayerHandler $player_handler) {}
+    public function __construct(private EntityManagerInterface $entity_manager, private RecapRepository $recap_repository, private Validation $validation, private SerializerInterface $serializer_interface, private PlayerRepository $player_repository, private GameHandler $game_handler, private PlayerHandler $player_handler, private ValidatorInterface $validator_interface) {}
 
     public function add(array $data)
     {
@@ -112,12 +113,11 @@ class RecapHandler
 
             $recap->setLastUpdated(new DateTime());
 
-            $this->validation->validate(Recap::class, [
-                'player' => $recap->getPlayer(),
-                'game' => $recap->getGame(),
-                'status' => $status,
-                'rating' => $rating
-            ]);
+            $errors =  $this->validator_interface->validate($recap);
+
+            if (count($errors) > 0) {
+                throw new ValidationException("La validation a échoué.", $errors);
+            }
         }
     }
 
@@ -160,7 +160,7 @@ class RecapHandler
 
     private function createAndValidateGame(array $game_data): Game
     {
-        return $this->game_handler->validateAndCreate($game_data);
+        return $this->game_handler->validateAndCreate($game_data, ['groups' => 'recap:update']);
     }
 
     private function buildRecap(Player $player, Game $game, array $data): Recap
@@ -177,3 +177,5 @@ class RecapHandler
         $this->save($recap);
     }
 }
+
+//TODO : Supprimer les ojets de validation inutiles, faire la validation directement dans les entités quand c'est possible

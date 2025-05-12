@@ -142,7 +142,7 @@ final class RecapController extends AbstractController
 
             return Json::response([
                 'success' => false,
-                'message' => "Les données fournies sont invalides.",
+                'message' => "Les données fournies sont invalides." . $e->getMessage(),
                 'errors' => $e->getErrors() ? FormatingErrors::format($e->getErrors()) : null,
             ], JsonResponse::HTTP_BAD_REQUEST);
         } catch (RecapExistingException $e) {

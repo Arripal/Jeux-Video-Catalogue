@@ -3,16 +3,17 @@
 namespace App\Services;
 
 use App\Entity\Player;
+use App\Entity\User;
 use App\Exception\PlayerProfileNotFoundException;
 use App\Validation\Player as ValidationPlayer;
+use App\Validation\Registration;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\String\Slugger\SluggerInterface;
 
 class PlayerHandler
 {
-    public function __construct(private Security $security, private Validation $validation, private EntityManagerInterface $entity_manager, private SluggerInterface $slugger, private UploadFile $upload_file) {}
+    public function __construct(private Security $security, private Validation $validation, private EntityManagerInterface $entity_manager, private SluggerInterface $slugger, private UploadFile $upload_file, private UserHandler $user_handler) {}
 
     public function getProfile(): Player
     {
@@ -47,5 +48,19 @@ class PlayerHandler
             $file_path = $this->upload_file->upload($avatar);
             $existing_player->setAvatar($file_path);
         }
+    }
+
+    public function createPlayerProfile(Registration $registration_data, User $user)
+    {
+        $player_profile = new Player();
+        $avatar = $this->upload_file->upload($registration_data->getAvatar());
+
+        $player_profile->setProfileUser($user)
+            ->setUsername($registration_data->getUsername())
+            ->setBio($registration_data->getBio())
+            ->setAvatar($avatar)
+            ->setLocation($registration_data->getLocation());
+
+        return $player_profile;
     }
 }

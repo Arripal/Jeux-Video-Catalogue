@@ -2,26 +2,27 @@
 
 namespace App\Controller;
 
-use App\Entity\Player;
-use App\Entity\User;
-use App\Exceptions\RegistrationException;
+use App\Exception\ValidationException;
 use App\Repository\UserRepository;
-use App\Utils\FormatingErrors;
+use App\Services\RegistrationHandler;
 use App\Utils\Json;
-use App\Validation\Registration;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\Validator\Validator\ValidatorInterface;
+
 
 #[Route('/auth', name: 'app')]
 final class AuthController extends AbstractController
 {
-
-    public function __construct(private RequestStack $request_stack, private UserRepository $user_repository, private UserPasswordHasherInterface $password_hasher, private ValidatorInterface $validator_interface) {}
+    private Request $request;
+    public function __construct(private RequestStack $request_stack, private UserRepository $user_repository, private RegistrationHandler $registration_handler,)
+    {
+        $this->request = $this->request_stack->getCurrentRequest();
+    }
 
     #[Route('/connexion', name: '.login', methods: ['POST'])]
     public function login(): JsonResponse
@@ -30,43 +31,29 @@ final class AuthController extends AbstractController
     }
 
     #[Route('/inscription', name: '.register', methods: ['POST'])]
-    public function register(EntityManagerInterface $entity_manager): JsonResponse
+    public function register(): JsonResponse
     {
+        try {
+            $data = $this->request->request->all();
+            $file = $this->request->files->get('avatar');
 
-        $data = Json::decode($this->request_stack->getCurrentRequest()->getContent());
+            $registration = $this->registration_handler->buidAndValidate($data, $file);
 
-        $email = $data['email'] ?? '';
-        $password = $data['password'] ?? '';
-        $username = $data['username'] ?? '';
-        $bio = $data['bio'] ?? null;
-        $avatar = $data['avatar'] ?? null;
-        $location = $data['location'] ?? null;
+            $this->registration_handler->register($registration);
 
-        $registration = new Registration($email, $password, $username, $bio, $avatar, $location);
-        $errors = $this->validator_interface->validate($registration);
+            return Json::response([
+                'success' => true,
+                'message' => "Inscription réussie."
+            ], JsonResponse::HTTP_CREATED);
+        } catch (ValidationException $e) {
 
-        if (count($errors) > 0) {
-            return Json::response(['success' => false, 'message' => "Impossible de vous inscrire.", 'errors' => FormatingErrors::format($errors)]);
+            return Json::response(['success' => false, 'message' => $e->getMessage()], Response::HTTP_EXPECTATION_FAILED);
+        } catch (\Throwable $e) {
+
+            return Json::response([
+                'success' => false,
+                'message' => 'Une erreur interne est survenue : ' . $e->getMessage(),
+            ], JsonResponse::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        $user = new User();
-        $user->setEmail($email);
-        $user->setPassword($this->password_hasher->hashPassword($user, $password));
-
-        $player_profile = new Player();
-        $player_profile->setProfileUser($user);
-        $player_profile->setUsername($data['username']);
-        $player_profile->setBio($data['bio'] ?? null);
-        $player_profile->setAvatar($data['avatar'] ?? null);
-        $player_profile->setLocation($data['location'] ?? null);
-
-        $entity_manager->persist($user);
-        $entity_manager->persist($player_profile);
-        $entity_manager->flush();
-
-        return Json::response([
-            'success' => true,
-            'message' => "Inscription réussie."
-        ], JsonResponse::HTTP_CREATED);
     }
 }

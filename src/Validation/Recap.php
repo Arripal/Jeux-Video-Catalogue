@@ -7,6 +7,7 @@ use App\Entity\Player;
 use App\enums\GameStatus;
 use Symfony\Component\Validator\Constraints as Assert;
 use App\Validation\Constraints as CustomAssert;
+use Symfony\Component\Serializer\Annotation\Groups;
 
 #[CustomAssert\UniqueRecap(groups: ['recap:add'])]
 class Recap

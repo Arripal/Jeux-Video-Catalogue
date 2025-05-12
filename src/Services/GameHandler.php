@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Entity\Game;
-use App\Exception\GameExistsException;
 use App\Repository\GameRepository;
 use App\Validation\Game as ValidationGame;
 use Doctrine\ORM\EntityManagerInterface;
@@ -37,9 +36,9 @@ class GameHandler
         return $game;
     }
 
-    public function validateAndCreate(array $data): Game
+    public function validateAndCreate(array $data, $groups = []): Game
     {
-        $valid_game = $this->validation->validate(ValidationGame::class, $data);
+        $valid_game = $this->validation->validate(ValidationGame::class, $data, $groups);
 
         $game = $this->create($valid_game);
 

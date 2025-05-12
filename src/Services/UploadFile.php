@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Entity\Player;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\String\Slugger\SluggerInterface;
@@ -15,7 +14,7 @@ class UploadFile
     {
         $original_filename = pathinfo($uploaded_file->getClientOriginalName(), PATHINFO_FILENAME);
         $safe_filename = $this->slugger_interface->slug($original_filename);
-        $new_filename = $safe_filename . '-' . uniqid() . $uploaded_file->guessExtension();
+        $new_filename = $safe_filename . '-' . uniqid() . '.' . $uploaded_file->guessExtension();
 
         try {
             $uploaded_file->move($this->target_directory, $new_filename);
@@ -23,9 +22,7 @@ class UploadFile
             throw $e;
         }
 
-        $file_path = $this->setFilePath($new_filename);
-
-        return $file_path;
+        return $new_filename;
     }
 
     public function remove(string $file): void
@@ -38,7 +35,6 @@ class UploadFile
 
         unlink($file_path);
     }
-
 
     private function setFilePath(string $filename): string
     {
