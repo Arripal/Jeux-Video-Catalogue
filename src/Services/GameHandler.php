@@ -3,54 +3,49 @@
 namespace App\Services;
 
 use App\Entity\Game;
+use App\Exception\GameExistsException;
 use App\Repository\GameRepository;
-use App\Validation\Game as ValidationGame;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Symfony\Component\Serializer\SerializerInterface;
 
 class GameHandler
 {
     public function __construct(
         private SerializerInterface $serializer,
+        private DenormalizerInterface $denormalizer,
         private Validation $validation,
         private EntityManagerInterface $entity_manager,
         private GameRepository $game_repository
     ) {}
 
-    public function create(ValidationGame $validation_game): Game
+    public function create(array $data): Game
     {
 
-        $game = new Game();
-
-        $game->setApiID($validation_game->getApiId())
-            ->setDevelopers($validation_game->getDevelopers())
-            ->setGenres($validation_game->getGenres())
-            ->setFranchise($validation_game->getFranchise())
-            ->setGlobalRating($validation_game->getGlobalRating())
-            ->setPlateforms($validation_game->getPlateforms())
-            ->setPublisher($validation_game->getPublisher())
-            ->setRatingCount($validation_game->getRatingCount())
-            ->setReleaseDate($validation_game->getReleaseDate())
-            ->setTitle($validation_game->getTitle());
+        $game = $this->denormalizer->denormalize($data, Game::class, 'array');
 
         return $game;
     }
 
-    public function validateAndCreate(array $data, $groups = []): Game
+    public function validateAndCreate(array $data, $groups = null): Game
     {
-        $valid_game = $this->validation->validate(ValidationGame::class, $data, $groups);
+        $existing_game = $this->find($data['apiID']);
 
-        $game = $this->create($valid_game);
+        if ($existing_game) {
+            throw new GameExistsException("Ce jeu est déjà enregistré.");
+        }
+
+        $game = $this->create($data);
+
+        $game = $this->validation->validate($game, null, $groups);
 
         return $game;
     }
 
-    public function find(string $api_game_id): Game
+    public function find(string $api_game_id): ?Game
     {
-        $existing_game = $this->game_repository->findOneBy([
+        return  $this->game_repository->findOneBy([
             'apiID' => $api_game_id
         ]);
-
-        return $existing_game;
     }
 }

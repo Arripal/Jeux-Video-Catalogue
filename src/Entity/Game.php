@@ -7,6 +7,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: GameRepository::class)]
 class Game
@@ -18,26 +19,36 @@ class Game
 
     #[ORM\Column]
     #[Groups(['recap:read', 'game:read'])]
+    #[Assert\NotNull(message: "L'identifiant du jeu est obligatoire.")]
     private ?string $apiID = null;
 
     #[ORM\Column(length: 255)]
     #[Groups(['recap:read', 'game:read'])]
+    #[Assert\NotBlank(message: "Un titre valide est nécessaire.")]
+    #[Assert\NotNull(message: "Le titre est obligatoire.")]
     private ?string $title = null;
 
     #[ORM\Column]
     #[Groups(['recap:read', 'game:read'])]
+    #[Assert\NotNull(message: "La date de sortie est obligatoire.")]
     private ?\DateTimeImmutable $releaseDate = null;
 
     #[Groups(['game:read'])]
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $publisher = null;
 
-    #[ORM\Column]
+    #[ORM\Column(nullable: false)]
     #[Groups(['recap:read', 'game:read'])]
+    #[Assert\Type('array', message: "Les genres doivent être dans un tableau.")]
+    #[Assert\NotNull(message: "Genres obligatoire.")]
+    #[Assert\Count(min: 1, minMessage: "Au moins un genre est requis.")]
     private array $genres = [];
 
-    #[ORM\Column]
+    #[ORM\Column(nullable: false)]
     #[Groups(['recap:read', 'game:read'])]
+    #[Assert\Type('array', message: "Les plateformes doivent être dans un tableau.")]
+    #[Assert\NotNull(message: "Les plateformes sont obligatoires.")]
+    #[Assert\Count(min: 1, minMessage: "Au moins une plateforme est requise.")]
     private array $plateforms = [];
 
     #[ORM\Column(length: 255, nullable: true)]

@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Entity\Recap;
 use App\Exception\GameExistsException;
 use App\Exception\PlayerProfileNotFoundException;
 use App\Exception\RecapExistingException;
@@ -39,10 +40,12 @@ final class RecapController extends AbstractController
             $player_profile = $this->player_handler->getProfile();
             $player_games = $this->recap_handler->getRecaps($player_profile);
 
-            return Json::response([
+            $data = $this->serializer_interface->serialize([
                 'success' => true,
-                'games' => $this->normalizer_interface->normalize($player_games, null, ['groups' => ['recap:read']])
-            ], JsonResponse::HTTP_OK);
+                'games' => $player_games,
+            ], 'json', ['groups' => ['recap:read']]);
+
+            return Json::response($data, JsonResponse::HTTP_OK, [], true);
         } catch (PlayerProfileNotFoundException | RecapNotFoundException $e) {
 
             return Json::response([
@@ -94,7 +97,7 @@ final class RecapController extends AbstractController
             return Json::response([
                 'success' => true,
                 'message' => "Le jeu a été ajouté avec succès.",
-                'game' => json_decode($this->serializer_interface->serialize($game, 'json', ['groups' => 'game:read']))
+                'game' => json_decode($this->serializer_interface->serialize($game, 'json', ['game:add']))
             ], JsonResponse::HTTP_CREATED);
         } catch (ValidationException $e) {
 
@@ -118,15 +121,15 @@ final class RecapController extends AbstractController
         }
     }
 
-    #[Route('/update/{api_game_id}', name: '.update', methods: ['PUT'])]
-    public function updateRecap()
+    #[Route('/update/{recap_id}', name: '.update', methods: ['PUT'])]
+    public function updateRecap(int $recap_id)
     {
 
         try {
 
             $data = Json::decode($this->request->getContent());
 
-            $this->recap_handler->update($data);
+            $this->recap_handler->update($data, $recap_id);
 
             return Json::response([
                 'success' => true,

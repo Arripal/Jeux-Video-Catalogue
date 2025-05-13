@@ -14,7 +14,7 @@ use App\Repository\RecapRepository;
 use App\Utils\FieldsHandler;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
-use App\Validation\Recap as ValidationRecap;
+
 use DateTime;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
@@ -25,9 +25,9 @@ class RecapHandler
 
     public function add(array $data)
     {
-        $player = $this->findPlayer();
+        $player = $this->player_handler->getProfile();
 
-        $game = $this->createAndValidateGame($data);
+        $game = $this->game_handler->validateAndCreate($data);
 
         $this->verifyExistingRecap($player, $game);
 
@@ -50,23 +50,19 @@ class RecapHandler
         return $recap;
     }
 
-    public function update(array $data)
+    public function update(array $data, int $recap_id)
     {
-        $player = $this->findPlayer();
 
-        $game = $this->createAndValidateGame($data);
-
-        $existing_recap = $this->exists($player, $game);
+        $existing_recap = $this->recap_repository->find($recap_id);
 
         if (!$existing_recap) {
             throw new RecapNotFoundException("Ce récapitulatif n'existe pas, impossible de le mettre à jour.");
         }
 
-        $game_status = FieldsHandler::gameStatus($data['gameStatus'] ?? null);
+        $game_status = FieldsHandler::gameStatus($data['gameStatus']) ?? $existing_recap->getStatus();
+        $rating = $data['rating'] ?? $existing_recap->getRating();
 
-        $this->validateAndUpdate($existing_recap, $game_status, $data['rating']);
-
-        $this->entity_manager->flush();
+        $this->validateAndUpdate($existing_recap, $game_status, $rating);
     }
 
     public function save(Recap $recap): void
@@ -87,38 +83,35 @@ class RecapHandler
 
     private function validateAndCreate(Player $player, Game $game, GameStatus $game_status, ?int $rating): Recap
     {
-        $recap_data = [
-            'player' => $player,
-            'game' => $game,
-            'status' => $game_status,
-            'rating' => $rating
-        ];
 
-        $recap =  $this->validation->validate(ValidationRecap::class, $recap_data, ['groups' => ['recap:add']]);
+        $recap = $this->create($player, $game, $game_status, $rating);
 
-        $recap->setPlayer($player);
-        $recap->setGame($game);
+        $this->validation->validate($recap, null, ['recap:add']);
 
-        return $this->create($player, $game, $game_status, $rating);
+        return $recap;
     }
 
     private function validateAndUpdate(Recap $recap, GameStatus $status, ?int $rating): void
     {
 
-        if ($rating !== $recap->getRating() || $status !== $recap->getStatus()) {
+        if ($rating !== $recap->getRating()) {
 
             $recap->setRating($rating);
-
-            $recap->setStatus($status);
-
-            $recap->setLastUpdated(new DateTime());
-
-            $errors =  $this->validator_interface->validate($recap);
-
-            if (count($errors) > 0) {
-                throw new ValidationException("La validation a échoué.", $errors);
-            }
         }
+
+        if ($status === null) {
+            throw new \InvalidArgumentException("Le statut du jeu est invalide.");
+        }
+
+        if ($status !== $recap->getStatus()) {
+            $recap->setStatus($status);
+        }
+
+        $recap->setLastUpdated(new DateTime());
+
+        $this->validation->validate($recap, null, ['recap:update']);
+
+        $this->entity_manager->flush();
     }
 
     private function verifyExistingRecap(Player $player, Game $game): void
@@ -130,10 +123,7 @@ class RecapHandler
         }
     }
 
-    private function findPlayer(): Player
-    {
-        return $this->player_handler->getProfile();
-    }
+
 
     public function getRecaps(Player $player)
     {
@@ -158,10 +148,6 @@ class RecapHandler
         return $recap;
     }
 
-    private function createAndValidateGame(array $game_data): Game
-    {
-        return $this->game_handler->validateAndCreate($game_data, ['groups' => 'recap:update']);
-    }
 
     private function buildRecap(Player $player, Game $game, array $data): Recap
     {
@@ -177,5 +163,3 @@ class RecapHandler
         $this->save($recap);
     }
 }
-
-//TODO : Supprimer les ojets de validation inutiles, faire la validation directement dans les entités quand c'est possible
