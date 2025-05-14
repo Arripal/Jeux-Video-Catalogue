@@ -2,7 +2,6 @@
 
 namespace App\Controller;
 
-use App\Entity\Recap;
 use App\Exception\GameExistsException;
 use App\Exception\PlayerProfileNotFoundException;
 use App\Exception\RecapExistingException;
@@ -13,7 +12,6 @@ use App\Services\RecapHandler;
 use App\Services\Validation;
 use App\Utils\FormatingErrors;
 use App\Utils\Json;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -27,7 +25,7 @@ final class RecapController extends AbstractController
 
     private $request;
 
-    public function __construct(RequestStack $request_stack, private EntityManagerInterface $entity_manager, private Validation $validation, private SerializerInterface $serializer_interface, private RecapHandler $recap_handler, private NormalizerInterface $normalizer_interface, private PlayerHandler $player_handler)
+    public function __construct(RequestStack $request_stack, private Validation $validation, private SerializerInterface $serializer_interface, private RecapHandler $recap_handler, private NormalizerInterface $normalizer_interface, private PlayerHandler $player_handler)
     {
         $this->request = $request_stack->getCurrentRequest();
     }
@@ -167,16 +165,24 @@ final class RecapController extends AbstractController
     public function deleteRecap(string $api_game_id)
     {
 
-        $recap = $this->recap_handler->getOneRecap($api_game_id);
+        try {
+            $recap = $this->recap_handler->getOneRecap($api_game_id);
 
-        if (!$recap) {
-            return Json::response(['success' => false, 'message' => 'Récapitulatif introuvable.'], JsonResponse::HTTP_NOT_FOUND);
+            $this->recap_handler->removeRecap($recap);
+
+            return Json::response(['success' => true, 'message' => 'Récapitulatif supprimé avec succès.', 'recap' => $this->normalizer_interface->normalize($recap, null, ['groups' => ['recap:read']])]);
+        } catch (RecapNotFoundException $e) {
+
+            return Json::response([
+                'success' => false,
+                'message' => 'Une erreur est survenue : ' . $e->getMessage(),
+            ], JsonResponse::HTTP_BAD_REQUEST);
+        } catch (\Throwable $e) {
+
+            return Json::response([
+                'success' => false,
+                'message' => 'Une erreur interne est survenue : ' . $e->getMessage(),
+            ], JsonResponse::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        $this->entity_manager->remove($recap);
-        $this->entity_manager->remove($recap->getGame());
-        $this->entity_manager->flush();
-
-        return Json::response(['success' => true, 'message' => 'Récapitulatif supprimé avec succès.', 'recap' => $this->normalizer_interface->normalize($recap, null, ['groups' => ['recap:read']])]);
     }
 }

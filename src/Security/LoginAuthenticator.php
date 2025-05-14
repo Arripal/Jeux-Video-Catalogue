@@ -2,6 +2,7 @@
 
 namespace App\Security;
 
+use App\Services\Validation;
 use App\Validation\Credentials;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -25,7 +26,7 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 class LoginAuthenticator extends AbstractAuthenticator
 {
 
-    public function __construct(private ValidatorInterface $validator_interface, private UserProviderInterface $user_provider, private JWTTokenManagerInterface $jwttoken_manager) {}
+    public function __construct(private ValidatorInterface $validator_interface, private UserProviderInterface $user_provider, private JWTTokenManagerInterface $jwttoken_manager, private Validation $validation) {}
 
     public function supports(Request $request): ?bool
     {
@@ -36,15 +37,13 @@ class LoginAuthenticator extends AbstractAuthenticator
     {
 
         $login_data = json_decode($request->getContent(), true);
+
         $email = $login_data['email'] ?? null;
         $password = $login_data['password'] ?? null;
 
         $credentials = new Credentials($email, $password);
-        $errors = $this->validator_interface->validate($credentials);
 
-        if (count($errors) > 0) {
-            throw new BadCredentialsException("Identifiants invalides.");
-        }
+        $this->validation->validate($credentials);
 
         $user = $this->user_provider->loadUserByIdentifier($email);
 
@@ -68,7 +67,8 @@ class LoginAuthenticator extends AbstractAuthenticator
     {
         $data = [
             'success' => false,
-            'message' => "Connexion impossible. Identifiants invalides."
+            'message' => "Connexion impossible. Identifiants invalides.",
+            'errors' => $exception->getMessage()
         ];
 
         return new JsonResponse($data, Response::HTTP_UNAUTHORIZED);

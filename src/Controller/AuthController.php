@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Exception\ValidationException;
 use App\Repository\UserRepository;
 use App\Services\RegistrationHandler;
+use App\Utils\FormatingErrors;
 use App\Utils\Json;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -46,7 +47,7 @@ final class AuthController extends AbstractController
             ], JsonResponse::HTTP_CREATED);
         } catch (ValidationException $e) {
 
-            return Json::response(['success' => false, 'message' => $e->getMessage()], Response::HTTP_EXPECTATION_FAILED);
+            return Json::response(['success' => false, 'message' => $e->getMessage(), 'errors' => $e->getErrors() ? FormatingErrors::format($e->getErrors()) : null], Response::HTTP_EXPECTATION_FAILED);
         } catch (\Throwable $e) {
 
             return Json::response([

@@ -5,15 +5,14 @@ namespace App\Services;
 use App\Entity\Player;
 use App\Entity\User;
 use App\Exception\PlayerProfileNotFoundException;
-use App\Validation\Player as ValidationPlayer;
 use App\Validation\Registration;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\String\Slugger\SluggerInterface;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 class PlayerHandler
 {
-    public function __construct(private Security $security, private Validation $validation, private EntityManagerInterface $entity_manager, private SluggerInterface $slugger, private UploadFile $upload_file, private UserHandler $user_handler) {}
+    public function __construct(private Security $security, private Validation $validation, private EntityManagerInterface $entity_manager, private UploadFile $upload_file, private UserHandler $user_handler) {}
 
     public function getProfile(): Player
     {
@@ -26,28 +25,36 @@ class PlayerHandler
         return $user->getMyPlayerProfile();
     }
 
-    public function update(array $data)
+    public function update(array $data, ?UploadedFile $uploaded_file = null)
     {
-        $player_profile = $this->getProfile();
-        $valid_player_profile = $this->validation->validate(ValidationPlayer::class, $data);
 
-        $this->updatePlayerProfile($valid_player_profile, $player_profile);
+        $this->updatePlayerProfile($data, $uploaded_file);
 
         $this->entity_manager->flush();
     }
 
-    private function updatePlayerProfile(ValidationPlayer $player, Player $existing_player)
+    private function updatePlayerProfile(array $data, ?UploadedFile $file = null)
     {
-        $existing_player->setBio($player->getBio())
-            ->setLocation($player->getLocation())
-            ->setUsername($player->getUsername());
+        $player_profile = $this->getProfile();
 
-        $avatar = $player->getAvatar();
+        $bio = $data['bio'] ?? null;
+        $location = $data['location'] ?? null;
 
-        if ($avatar) {
-            $file_path = $this->upload_file->upload($avatar);
-            $existing_player->setAvatar($file_path);
+        $player_profile
+            ->setBio($bio)
+            ->setLocation($location);
+
+        if ($file instanceof UploadedFile) {
+
+            if ($player_profile->getAvatar()) {
+                $this->upload_file->remove($player_profile->getAvatar());
+            }
+
+            $avatar_path = $this->upload_file->upload($file);
+            $player_profile->setAvatar($avatar_path);
         }
+
+        $this->validation->validate($player_profile);
     }
 
     public function createPlayerProfile(Registration $registration_data, User $user)

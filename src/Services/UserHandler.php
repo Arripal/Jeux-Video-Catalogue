@@ -13,7 +13,8 @@ class UserHandler
     public function createUser(Registration $registration_data)
     {
         $user = new User();
-        $user->setEmail($registration_data->getEmail())->setPassword($this->user_password_hasher->hashPassword($user, $registration_data->getPassword()));
+        $user->setEmail($registration_data->getEmail())
+            ->setPassword($this->user_password_hasher->hashPassword($user, $registration_data->getPassword()));
 
         return $user;
     }

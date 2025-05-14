@@ -41,11 +41,12 @@ class RecapHandler
     public function create(Player $player, Game $game, GameStatus $status, ?int $rating): Recap
     {
         $recap = new Recap();
-        $recap->setPlayer($player);
-        $recap->setGame($game);
-        $recap->setStatus($status);
-        $recap->setRating($rating);
-        $recap->setAddedAt(new DateTimeImmutable());
+
+        $recap->setPlayer($player)
+            ->setGame($game)
+            ->setStatus($status)
+            ->setRating($rating)
+            ->setAddedAt(new DateTimeImmutable());
 
         return $recap;
     }
@@ -59,7 +60,11 @@ class RecapHandler
             throw new RecapNotFoundException("Ce récapitulatif n'existe pas, impossible de le mettre à jour.");
         }
 
-        $game_status = FieldsHandler::gameStatus($data['gameStatus']) ?? $existing_recap->getStatus();
+        $game_status = FieldsHandler::gameStatus($data['gameStatus'] ?? '');
+
+        if ($game_status === null) {
+            throw new ValidationException("Le statut du jeu est invalide.");
+        }
         $rating = $data['rating'] ?? $existing_recap->getRating();
 
         $this->validateAndUpdate($existing_recap, $game_status, $rating);
@@ -161,5 +166,12 @@ class RecapHandler
     {
         $this->entity_manager->persist($game);
         $this->save($recap);
+    }
+
+    public function removeRecap(Recap $recap): void
+    {
+        $this->entity_manager->remove($recap->getGame());
+        $this->entity_manager->remove($recap);
+        $this->entity_manager->flush();
     }
 }

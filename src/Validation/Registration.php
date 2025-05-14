@@ -2,7 +2,6 @@
 
 namespace App\Validation;
 
-use App\Services\UploadFile;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Validator\Constraints as Assert;
 use App\Validation\Constraints as CustomAssert;
