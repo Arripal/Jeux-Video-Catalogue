@@ -42,7 +42,7 @@ class GameHandler
         return $game;
     }
 
-    public function find(string $api_game_id): ?Game
+    private function find(string $api_game_id): ?Game
     {
         return  $this->game_repository->findOneBy([
             'apiID' => $api_game_id
