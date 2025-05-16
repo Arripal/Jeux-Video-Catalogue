@@ -69,6 +69,7 @@ class LoginAuthenticator extends AbstractAuthenticator
         return new JsonResponse([
             'success' => false,
             'message' => $message,
+            'logged_in' => false
         ], Response::HTTP_UNAUTHORIZED);
     }
 }
