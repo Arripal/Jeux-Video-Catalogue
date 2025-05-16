@@ -11,7 +11,7 @@ class FormatingErrors
     {
         $error_messages = [];
         foreach ($errors as $error) {
-            $error_messages[] = $error->getMessage();
+            $error_messages[$error->getPropertyPath()] = $error->getMessage();
         }
 
         return $error_messages;
